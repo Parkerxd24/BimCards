@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Partials, EmbedBuilder } = require("discord.js");
+const { Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const dotenv = require("dotenv");
 const fs = require("fs-extra");
 const path = require("path");
@@ -58,30 +58,50 @@ const CHARACTERS = {
     { name: "Ronald", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382598855216070698/image_2025-06-12_015358940-removebg-preview.png", value: 1 },
     { name: "Greenshirt", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382598058935844945/image_2025-06-12_015044762-removebg-preview.png", value: 1 },
     { name: "Unpopular Opinion", image: "https://cdn.discordapp.com/attachments/1382476980271841292/1382601275585204315/L7egXP6Ab74brAIOdAAAAAElFTkSuQmCC.png", value: 1 },
+    { name: "Landlord", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382841301497806991/AS7NSUglrWAAAAAElFTkSuQmCC.png", value: 3 },
+    { name: "Lyles", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382841531505053779/BBraGyesxocAAAAASUVORK5CYII.png", value: 3 },
+    { name: "Jicrosoft", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382842318582841374/AXtHU1z7G5fVoiYsCS8fAAAAAElFTkSuQmCC.png", value: 3 },
+    { name: "Poor PC", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382842374912213143/JzchXngDjsvLEdmW2m3qARIcQX285UtRRUoa1ozVsmyNDisMqCchlGlkohiBkaHrccEx02FXhHe5asSPzkN1jd9vEHCVKmAAAAAElFTkSuQmCC.png", value: 3 },
+    { name: "Vegan", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382842347200446706/TOC6LNi81e8AAAAASUVORK5CYII.png", value: 3 },
+    { name: "Cashier", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382843269288955915/f79UJepmgFLC5IDb6fZQq1PTRNSQO4pP1h5vCnB9lprxc8y02LnHW5MXMxLcJ6o3CgRdlEPcD7YVrB6UyQM5AdWpXAAAAAElFTkSuQmCC.png", value: 3 },
+    { name: "Andrew", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382849543170818188/P6YlbkuwiiPAAAAAElFTkSuQmCC.png", value: 3 },
   ],
   Uncommon: [
     { name: "Bert", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382591454152626317/image_2025-06-12_012433021-removebg-preview.png", value: 3 },
+    { name: "M. Richards", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382847578248581120/UGP9rstlesVNR7dqC2wgCMlCrmZqko2Y2ynoguyaCuUrfJV93ZdNqfNfDbyi6Io3HyPNEDx3pRNYd1s2sAAAAASUVORK5CYII.png", value: 3 },
     { name: "Harvey", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382596533798834236/image_2025-06-12_014444476-removebg-preview.png", value: 3 },
     { name: "Mr Ingrata", image: "https://media.discordapp.net/attachments/1382576913389719553/1382592311594061856/IMG_4803.png", value: 3 },
+    { name: "Backrooms Guy", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382841012342231212/sTl04jQFmSlpJUbAMZAgwIvVE8jU7i0sPpwIZVRsVTxepJWbfc2op0kt8Y3BkHJEhiIoafRXADKLo38vusXrs6776aX5pT9MRWTC5oh3G2yISgHAAAAAElFTkSuQmCC.png", value: 3 },
     { name: "Ron", image: "https://cdn.discordapp.com/attachments/1382476980271841292/1382600869660332173/wP5repnBjkIhQAAAABJRU5ErkJggg.png", value: 3 },
     { name: "Grayson", image: "https://cdn.discordapp.com/attachments/1382476980271841292/1382600705642336359/image_2025-06-12_020115976-removebg-preview.png", value: 3 },
     { name: "Jacob", image: "https://media.discordapp.net/attachments/1382576913389719553/1382592311371759657/IMG_4804.png", value: 3 },
     { name: "Bank Robbery IOU", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382595405308493916/image_2025-06-12_014007668-removebg-preview.png", value: 3 },
+    { name: "Machine", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382842285963874355/w0JrPSHmaxHgAAAABJRU5ErkJggg.png", value: 3 },
+    { name: "Mechanic", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382843620301738094/wN9vhADNq3nwAAAABJRU5ErkJggg.png", value: 3 },
+    { name: "Secret Service", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382843651687845908/wcJJab1QMNPngAAAABJRU5ErkJggg.png", value: 3 },
+    { name: "Breakdancer", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382846610899210280/ATgVcY4eQmTsAAAAAElFTkSuQmCC.png", value: 3 },
+    { name: "Spare Change", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382847418982203402/UnUG6Fv4AAAAASUVORK5CYII.png", value: 3 },
+    { name: "Fast Food Worker", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382847866040614912/f8AUcVfy6ixQMkAAAAASUVORK5CYII.png", value: 3 },
+    { name: "Emperor", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382848478295625809/wHo7mXgiKxtAQAAAABJRU5ErkJggg.png", value: 3 },
+    { name: "Reeve Carvey", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382850072462757888/G4ewOPWySlGMcRridWew4d9XaZz7GgxFJs7h3WGIrTnxvln54VrMR6AL78nSKehz3wSQJQOlsGwq7DLyHvffcK2wICUQJZOoEHNkaIjJ343AGn9Md2qjdzfe47yuEc4DvVepBi3TM7f1wrUdPTwjtdAAAAAElFTkSuQmCC.png", value: 3 },
   ],
   Rare: [
     { name: "Dad", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382578729691385856/image_2025-06-12_003352906-removebg-preview.png", value: 5 },
     { name: "Grandpa", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382595763338743880/image_2025-06-12_014141899-removebg-preview.png", value: 5 },
     { name: "Uncle", image: "https://cdn.discordapp.com/attachments/1382476980271841292/1382601794693107775/A0gXXXmHanAAAAAElFTkSuQmCC.png", value: 5 },
     { name: "Officer Leslie", image: "https://cdn.discordapp.com/attachments/1382476980271841292/1382602502113071185/Dr2wzoAAAAASUVORK5CYII.png", value: 5 },
+    { name: "John", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382847052173672559/7PgvsZ48qS2IEiMAAAAASUVORK5CYII.png", value: 5 },
   ],
   Legend: [
     { name: "Chase Bank Glitch", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382591026002268262/image_2025-06-12_012250875-removebg-preview.png", value: 15 },
     { name: "Jaden", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382576947892064338/Jadenw.png", value: 100, isJaden: true },
     { name: "Florida Man", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382578001249833062/Floridaman-dry.webp", value: 15 },
-    { name: "Miguel", image: "https://i.imgur.com/4S7U5Tf.png", value: 15 },
+    { name: "Miguel", image: "https://cdn.discordapp.com/attachments/1382476980271841292/1382807767085223946/wdaa_dada.png", value: 15 },
+    { name: "3D Jaden", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382846080273879122/22YQPfnDgooUXrd6Y7yE8WloyESACROBHEyDBQ1cHESACRIAIEAEiQASIABEgAquWAAmeVXu0tDEiQASIABEgAkSACBABIkAESPDQNUAEiAARIAJEgAgQASJABIjAqiVAgmfVHi1tjAgQASJABIgAESACRIAIEAESPHQNEAEiQASIABEgAkSACBABIrBqCfwfnUeYVJ2NEYAAAAAASUVORK5CYII.png", value: 15 }
   ],
   Secret: [
     { name: "donutello", image: "https://cdn.discordapp.com/avatars/664915501641891860/37970d4f3d28c6c4c9a80cdf85955005.png?size=1024", value: 50 },
+    { name: "Parker", image: "https://cdn.discordapp.com/attachments/1382576913389719553/1382845006586314774/wPn2b624cFMOQAAAABJRU5ErkJggg.png", value: 50 },
   ],
 };
 
@@ -207,7 +227,14 @@ function paginate(array, page = 1, pageSize = 5) {
 client.once("ready", async () => {
   await loadAllData();
   console.log(`Logged in as ${client.user.tag}`);
+
+
+  client.user.setPresence({
+    activities: [{ name: "https://jadenw.com Best Merch", type: 3 }],
+    status: "online",
+  });
 });
+
 
 client.on("messageCreate", async (message) => {
   if (message.author.bot || !message.content.startsWith(PREFIX)) return;
@@ -216,6 +243,103 @@ client.on("messageCreate", async (message) => {
   const userId = message.author.id;
 
   switch (command.toLowerCase()) {
+
+case "chances": {
+  const embed = new EmbedBuilder()
+    .setTitle("📊 Pack Drop Chances")
+    .setColor("#4CAF50")
+    .setDescription("These are the base chances for pulling each rarity from packs.")
+    .addFields(
+      {
+        name: "Regular Pack",
+        value: [
+          "Secret: **0.002%**",
+          "Jaden: **0.002%**",
+          "Legend: **3%**",
+          "Rare: **7%**",
+          "Uncommon: **30%**",
+          "Common: **59.996%**"
+        ].join("\n")
+      },
+      {
+        name: "Legend Pack",
+        value: [
+          "Jaden: **1%**",
+          "Legend (non-Jaden): **99%**"
+        ].join("\n")
+      }
+    );
+
+  return message.channel.send({ embeds: [embed] });
+}
+
+
+    case "characters": {
+  const embed = new EmbedBuilder()
+    .setTitle("📜 All Available Characters")
+    .setColor("#FFA500")
+    .setFooter({ text: "Characters grouped by rarity." });
+
+  for (const [rarity, cards] of Object.entries(CHARACTERS)) {
+    const names = cards.map(c => c.name).join(", ");
+    embed.addFields({ name: `${rarity}`, value: names || "None", inline: false });
+  }
+
+  return message.channel.send({ embeds: [embed] });
+}
+
+
+    case "adminadd": {
+      
+      if (message.author.id !== "1283897212069347489") {
+        return message.channel.send("You do not have permission to use this command.");
+      }
+
+      const target = message.mentions.users.first();
+      const amount = parseInt(args[1]);
+
+      if (!target || isNaN(amount) || amount <= 0) {
+        return message.channel.send("Usage: `!adminadd @user <amount>`");
+      }
+
+      const targetId = target.id;
+      userCurrency[targetId] = (userCurrency[targetId] || 0) + amount;
+
+      await saveAllData();
+
+      return message.channel.send(` Gave **${amount}** coins to ${target.tag}`);
+    }
+
+
+        case "help": {
+      const embed = new EmbedBuilder()
+        .setTitle("📖 Bot Command Help")
+        .setColor("#00BFFF")
+        .setDescription("Here are all available commands:")
+        .addFields(
+          { name: "!balance", value: "Check your coin balance." },
+          { name: "!daily", value: "Claim your daily coin reward (every 4 hours)." },
+          { name: "!openpack", value: `Open a Regular Pack (${REGULAR_PACK_COST} coins).` },
+          { name: "!legendpack", value: `Open a Legend Pack (${LEGEND_PACK_COST} coins).` },
+          { name: "!inventory", value: "View your card collection." },
+          { name: "!characters", value: "View all the characters and their rarity!" },
+          { name: "!trade @user CardName amount", value: "Trade cards with another user." },
+          { name: "!leaderboard", value: "See the top 10 richest users." },
+          { name: "!chances", value: "See the chances of each rarity." },
+          { name: "!credits", value: "See who made the bot." },
+          { name: "!secret", value: "Display secret cards." },
+          { name: "!listcard <cardName> <price>", value: "List a card on the marketplace." },
+          { name: "!marketplace [rarity] [page]", value: "Browse the marketplace with optional filters." },
+          { name: "!buycard <listingId>", value: "Buy a card from the marketplace." },
+          { name: "!cancelcard <listingId>", value: "Cancel your own listing." },
+          { name: "!blackjack <amount>", value: "Play a game of blackjack and bet coins." },
+          { name: "!roulette <amount> red|black", value: "Bet on red or black and spin the roulette." }
+        )
+        .setFooter({ text: "Use commands with the '!' prefix." });
+
+      return message.channel.send({ embeds: [embed] });
+    }
+
     case "balance": {
       const bal = userCurrency[userId] || 0;
       return message.channel.send(`${message.author}, you have **${bal}** coins.`);
@@ -286,10 +410,12 @@ client.on("messageCreate", async (message) => {
       const counts = {};
       inv.forEach(card => counts[card.name] = (counts[card.name] || 0) + 1);
 
-      let desc = "";
-      for (const [name, count] of Object.entries(counts)) {
-        desc += `**${name}** x${count}\n`;
-      }
+  let desc = "";
+for (const [name, count] of Object.entries(counts)) {
+  const card = { name }; 
+  const rarity = getRarityByCard(card);
+  desc += `**${name}** (${rarity}) x${count}\n`;
+}
 
       const embed = new EmbedBuilder()
         .setTitle(`${message.author.username}'s Card Inventory`)
@@ -348,7 +474,7 @@ client.on("messageCreate", async (message) => {
     }
 
     case "credits": {
-      return message.channel.send("Made by ParkerXD24 he is so cool, also donutello helped");
+      return message.channel.send("This bot was Designed and Coded Entirely By ParkerXD24, Credits: Donutello, and lechonk for the Pictures");
     }
 
     case "secret": {
@@ -357,7 +483,7 @@ client.on("messageCreate", async (message) => {
         return message.channel.send("No secret cards available.");
       }
       const embed = new EmbedBuilder()
-        .setTitle("Donutello is the GOAT🐐")
+        .setTitle("These are a Secret Don't tell Nobody")
         .setColor(rarityColor("Secret"));
 
       let desc = "";
@@ -496,9 +622,147 @@ client.on("messageCreate", async (message) => {
       return message.channel.send(`Your listing for **${listing.card.name}** has been canceled and the card returned to your inventory.`);
     }
 
+    
+    case "blackjack": {
+      const bet = parseInt(args[0]);
+      if (!bet || bet <= 0) return message.channel.send("Usage: `!blackjack <amount>`");
+      if ((userCurrency[userId] || 0) < bet) return message.channel.send("You don't have enough coins.");
+
+      const playerHand = [drawCard(), drawCard()];
+      const dealerHand = [drawCard()];
+
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder().setCustomId("hit").setLabel("Hit").setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId("stand").setLabel("Stand").setStyle(ButtonStyle.Danger)
+        );
+
+      const embed = new EmbedBuilder()
+        .setTitle("Blackjack")
+        .setDescription(`Your hand: ${playerHand.join(", ")} (Total: ${getHandValue(playerHand)})\nDealer's visible card: ${dealerHand[0]}`)
+        .setColor("#3498db");
+
+      activeGames.set(userId, { bet, playerHand, dealerHand, row });
+
+      return message.channel.send({ embeds: [embed], components: [row] });
+    }
+
+
+    case "roulette": {
+      const bet = parseInt(args[0]);
+      const guess = args[1]?.toLowerCase();
+      if (!bet || bet <= 0 || !["red", "black"].includes(guess))
+        return message.channel.send("Usage: `!roulette <amount> red|black`");
+
+      if ((userCurrency[userId] || 0) < bet)
+        return message.channel.send("You don't have enough coins to place that bet.");
+
+      const outcome = Math.random() < 0.5 ? "red" : "black";
+      const img = outcome === "red" ? "https://cdn.discordapp.com/attachments/1382576913389719553/1382834200037818438/D6TeyrO3jTo4AAAAAElFTkSuQmCC.png" : "https://cdn.discordapp.com/attachments/1382576913389719553/1382834200037818438/D6TeyrO3jTo4AAAAAElFTkSuQmCC.png";
+
+      let resultMsg = `The wheel landed on **${outcome}**.`;
+      if (guess === outcome) {
+        userCurrency[userId] += bet;
+        resultMsg += ` You won **${bet}** coins!`;
+      } else {
+        userCurrency[userId] -= bet;
+        resultMsg += ` You lost **${bet}** coins.`;
+      }
+
+      await saveAllData();
+
+      const embed = new EmbedBuilder()
+        .setTitle("Roulette Result")
+        .setDescription(resultMsg)
+        .setImage(img)
+        .setColor(outcome === "red" ? "#e74c3c" : "#2c3e50");
+
+      return message.channel.send({ embeds: [embed] });
+    }
+
     default:
       return;
   }
 });
 
 client.login(process.env.TOKEN);
+
+
+
+// Blackjack Button Collector & UI Logic
+const activeGames = new Map();
+
+function getHandValue(hand) {
+  let total = hand.reduce((a, b) => a + b, 0);
+  let aces = hand.filter(c => c === 11).length;
+  while (total > 21 && aces--) total -= 10;
+  return total;
+}
+
+function drawCard() {
+  const deck = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11];
+  return deck[Math.floor(Math.random() * deck.length)];
+}
+
+client.on("interactionCreate", async interaction => {
+  if (!interaction.isButton()) return;
+  const game = activeGames.get(interaction.user.id);
+  if (!game) return;
+
+  if (interaction.customId === "hit") {
+    game.playerHand.push(drawCard());
+    const playerTotal = getHandValue(game.playerHand);
+
+    if (playerTotal > 21) {
+      activeGames.delete(interaction.user.id);
+      userCurrency[interaction.user.id] -= game.bet;
+      await saveAllData();
+      return interaction.update({
+        content: `**Blackjack** - You drew a card.
+Your hand: ${game.playerHand.join(", ")} (Total: ${playerTotal})
+**BUST!** You lost **${game.bet}** coins.`,
+        components: []
+      });
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("Blackjack")
+      .setDescription(`Your hand: ${game.playerHand.join(", ")} (Total: ${playerTotal})
+Dealer's visible card: ${game.dealerHand[0]}`);
+
+    return interaction.update({
+      embeds: [embed],
+      components: [game.row]
+    });
+
+  } else if (interaction.customId === "stand") {
+    let dealerTotal = getHandValue(game.dealerHand);
+    while (dealerTotal < 17) {
+      game.dealerHand.push(drawCard());
+      dealerTotal = getHandValue(game.dealerHand);
+    }
+
+    const playerTotal = getHandValue(game.playerHand);
+    let result = "";
+    if (dealerTotal > 21 || playerTotal > dealerTotal) {
+      result = `You win! You earned **${game.bet}** coins.`;
+      userCurrency[interaction.user.id] += game.bet;
+    } else if (playerTotal === dealerTotal) {
+      result = `It's a draw! Your bet was returned.`;
+    } else {
+      result = `You lost **${game.bet}** coins.`;
+      userCurrency[interaction.user.id] -= game.bet;
+    }
+
+    await saveAllData();
+    activeGames.delete(interaction.user.id);
+
+    return interaction.update({
+      content: `**Blackjack**
+Your hand: ${game.playerHand.join(", ")} (Total: ${playerTotal})
+Dealer's hand: ${game.dealerHand.join(", ")} (Total: ${dealerTotal})
+${result}`,
+      components: []
+    });
+  }
+});
