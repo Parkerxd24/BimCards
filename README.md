@@ -1,5 +1,6 @@
 # BimCards
 This bot was Designed and Coded Entirely By ParkerXD24!
+
 Commands
 !balance             - Check your coin balance
 !daily               - Claim your daily coins (cooldown applies)
