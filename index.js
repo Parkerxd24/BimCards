@@ -700,8 +700,6 @@ case "trade": {
 client.login(process.env.TOKEN);
 
 
-
-// Blackjack Button Collector & UI Logic
 const activeGames = new Map();
 
 function getHandValue(hand) {
