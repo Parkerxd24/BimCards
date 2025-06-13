@@ -425,29 +425,38 @@ for (const [name, count] of Object.entries(counts)) {
       return message.channel.send({ embeds: [embed] });
     }
 
-    case "trade": {
-      const target = message.mentions.users.first();
-      if (!target) return message.channel.send("Please mention a user to trade with.\nUsage: `!trade @user CardName amount`");
-      const cardName = args[1];
-      const amount = parseInt(args[2]);
-      if (!cardName || isNaN(amount) || amount < 1) return message.channel.send("Usage: `!trade @user CardName amount`");
+case "trade": {
+  const target = message.mentions.users.first();
+  if (!target) {
+    return message.channel.send("Please mention a user to trade with.\nUsage: `!trade @user <Card Name> <amount>`");
+  }
 
-      const senderInv = userInventory[userId] || [];
-      const senderCardCount = senderInv.filter(c => c.name.toLowerCase() === cardName.toLowerCase()).length;
-      if (senderCardCount < amount) return message.channel.send("You don't have enough cards to trade.");
+  const amount = parseInt(args[args.length - 1]);
+  if (isNaN(amount) || amount < 1) {
+    return message.channel.send("Usage: `!trade @user <Card Name> <amount>`");
+  }
 
-      const removed = removeCardsFromInventory(userId, cardName, amount);
-      if (!removed) return message.channel.send("An error occurred removing cards.");
+  const cardName = args.slice(1, -1).join(" "); // Exclude mention and amount
+  const senderInv = userInventory[userId] || [];
+  const senderCardCount = senderInv.filter(c => c.name.toLowerCase() === cardName.toLowerCase()).length;
 
-      if (!userInventory[target.id]) userInventory[target.id] = [];
-      const cardTemplate = Object.values(CHARACTERS).flat().find(c => c.name.toLowerCase() === cardName.toLowerCase());
-      for (let i = 0; i < amount; i++) {
-        userInventory[target.id].push(cardTemplate);
-      }
+  if (senderCardCount < amount) {
+    return message.channel.send("You don't have enough cards to trade.");
+  }
 
-      await saveAllData();
-      return message.channel.send(`${message.author} traded **${amount}** x **${cardName}** to ${target}.`);
-    }
+  const removed = removeCardsFromInventory(userId, cardName, amount);
+  if (!removed) return message.channel.send("An error occurred removing cards.");
+
+  if (!userInventory[target.id]) userInventory[target.id] = [];
+  const cardTemplate = Object.values(CHARACTERS).flat().find(c => c.name.toLowerCase() === cardName.toLowerCase());
+  for (let i = 0; i < amount; i++) {
+    userInventory[target.id].push(cardTemplate);
+  }
+
+  await saveAllData();
+  return message.channel.send(`${message.author} traded **${amount}** x **${cardName}** to ${target}.`);
+}
+
 
     case "leaderboard": {
       const sortedUsers = Object.entries(userCurrency)
@@ -474,7 +483,7 @@ for (const [name, count] of Object.entries(counts)) {
     }
 
     case "credits": {
-      return message.channel.send("This bot was Designed and Coded Entirely By ParkerXD24, Credits: Donutello, and lechonk for the Pictures");
+      return message.channel.send("This bot was Designed and Coded Entirely By ParkerXD24, Credits: Donutello, itzjustjenn, and lechonk for the Pictures");
     }
 
     case "secret": {
@@ -502,33 +511,36 @@ for (const [name, count] of Object.entries(counts)) {
 
 
     case "listcard": {
+  const price = parseInt(args[args.length - 1]);
+  if (isNaN(price) || price <= 0) {
+    return message.channel.send("Usage: `!listcard <card name> <price>` (price must be a positive number)");
+  }
 
-      const cardName = args[0];
-      const price = parseInt(args[1]);
-      if (!cardName || isNaN(price) || price <= 0) {
-        return message.channel.send("Usage: `!listcard <cardName> <price>` (price must be a positive number)");
-      }
-      const inv = userInventory[userId] || [];
-      const cardIndex = inv.findIndex(c => c.name.toLowerCase() === cardName.toLowerCase());
-      if (cardIndex === -1) return message.channel.send(`You don't have any "${cardName}" cards in your inventory.`);
+  const cardName = args.slice(0, -1).join(" ");
+  const inv = userInventory[userId] || [];
+  const cardIndex = inv.findIndex(c => c.name.toLowerCase() === cardName.toLowerCase());
 
-      const card = inv.splice(cardIndex, 1)[0];
-      userInventory[userId] = inv;
+  if (cardIndex === -1) {
+    return message.channel.send(`You don't have any "${cardName}" cards in your inventory.`);
+  }
 
+  const card = inv.splice(cardIndex, 1)[0];
+  userInventory[userId] = inv;
 
-      const newListing = {
-        id: marketplaceListings.length > 0 ? (marketplaceListings[marketplaceListings.length - 1].id + 1) : 1,
-        sellerId: userId,
-        card,
-        price,
-        rarity: getRarityByCard(card),
-        createdAt: Date.now(),
-      };
-      marketplaceListings.push(newListing);
-      await saveAllData();
+  const newListing = {
+    id: marketplaceListings.length > 0 ? (marketplaceListings[marketplaceListings.length - 1].id + 1) : 1,
+    sellerId: userId,
+    card,
+    price,
+    rarity: getRarityByCard(card),
+    createdAt: Date.now(),
+  };
 
-      return message.channel.send(`Your **${card.name}** card has been listed for **${price}** coins on the marketplace. Listing ID: **${newListing.id}**`);
-    }
+  marketplaceListings.push(newListing);
+  await saveAllData();
+
+  return message.channel.send(`Your **${card.name}** card has been listed for **${price}** coins on the marketplace. Listing ID: **${newListing.id}**`);
+}
 
     case "marketplace": {
       let filterRarity = null;
@@ -765,4 +777,6 @@ ${result}`,
       components: []
     });
   }
+});
+
 });
