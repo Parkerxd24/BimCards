@@ -1,4 +1,5 @@
 const { Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const fetch = require("node-fetch");
 const dotenv = require("dotenv");
 const fs = require("fs-extra");
 const path = require("path");
@@ -20,6 +21,8 @@ const currencyPath = path.join(DATA_DIR, "currency.json");
 const inventoryPath = path.join(DATA_DIR, "inventory.json");
 const dailyPath = path.join(DATA_DIR, "daily.json");
 const marketplacePath = path.join(DATA_DIR, "marketplace.json");
+const battleStatsPath = path.join(DATA_DIR, "battlestats.json");
+
 
 async function loadJSON(filePath) {
   try {
@@ -43,6 +46,9 @@ let userCurrency = {};
 let userInventory = {};
 let userDailyCooldown = {};
 let marketplaceListings = [];
+const pendingBattles = {};
+let battleStats = {};
+
 
 async function saveAllData() {
   await Promise.all([
@@ -52,6 +58,13 @@ async function saveAllData() {
     fs.writeJson(marketplacePath, marketplaceListings, { spaces: 2 }),
   ]);
 }
+async function saveBattleStats() {
+  await fs.writeJson(battleStatsPath, battleStats, { spaces: 2 });
+}
+async function loadBattleStats() {
+  battleStats = await loadJSONobj(battleStatsPath);
+}
+
 
 const CHARACTERS = {
   Common: [
@@ -209,6 +222,7 @@ async function loadAllData() {
   userInventory = await loadJSONobj(inventoryPath);
   userDailyCooldown = await loadJSONobj(dailyPath);
   marketplaceListings = await loadJSON(marketplacePath);
+  await loadBattleStats();
 }
 
 function validateRarity(rarity) {
@@ -223,16 +237,27 @@ function paginate(array, page = 1, pageSize = 5) {
   const start = (page - 1) * pageSize;
   return array.slice(start, start + pageSize);
 }
+const statuses = [
+  "https://jadenw.com",
+  "Use !help for command list.",
+  "Made By ParkerXD24"
+];
 
-client.once("ready", async () => {
-  await loadAllData();
+client.on("ready", () => {
   console.log(`Logged in as ${client.user.tag}`);
 
+  let index = 0;
 
-  client.user.setPresence({
-    activities: [{ name: "https://jadenw.com Best Merch", type: 3 }],
-    status: "online",
-  });
+  function setStatus() {
+    client.user.setPresence({
+      activities: [{ name: statuses[index], type: 3 }],
+      status: "online"
+    });
+    index = (index + 1) % statuses.length;
+  }
+
+  setStatus();
+  setInterval(setStatus, 10000);
 });
 
 
@@ -243,6 +268,133 @@ client.on("messageCreate", async (message) => {
   const userId = message.author.id;
 
   switch (command.toLowerCase()) {
+
+case "credits": {
+  const creditsEmbed = new EmbedBuilder()
+    .setTitle("*** Bot Credits ***")
+    .setColor("#ffcd05")
+    .setThumbnail("https://cdn.discordapp.com/attachments/1382475319122067486/1382478295710564543/image.png")
+    .addFields(
+      { name: "*** Bot Designer ***", value: "ParkerXD24", inline: true },
+      { name: "*** Bot Programmer ***", value: "ParkerXD24", inline: true },
+      { name: "Extra Credit", value: "Donutello, itzjustjenn, and lechonk", inline: false },
+      { name: "Special Thanks", value: "All the users who tested commands & provided card images", inline: false }
+    )
+    .setFooter({ text: ":)" })
+    .setTimestamp();
+
+  return message.channel.send({ embeds: [creditsEmbed] });
+}
+
+
+case "battle": {
+  const opponent = message.mentions.users.first();
+  const cardName = args.slice(1).join(" ");
+  if (!opponent || opponent.bot || !cardName) {
+    return message.channel.send("Usage: `!battle @user Card Name`");
+  }
+
+  const inv = userInventory[userId] || [];
+  const hasCard = inv.find(c => c.name.toLowerCase() === cardName.toLowerCase());
+  if (!hasCard) {
+    return message.channel.send("You don't have that card in your inventory.");
+  }
+
+  const battleId = `${userId}_${opponent.id}`;
+  if (pendingBattles[battleId]) {
+    return message.channel.send("A battle request between you two is already pending.");
+  }
+
+  pendingBattles[battleId] = {
+    challenger: userId,
+    opponent: opponent.id,
+    challengerCard: hasCard.name,
+    timestamp: Date.now()
+  };
+
+  return message.channel.send(`${opponent}, ${message.author.username} challenged you with **${hasCard.name}**. Use \`!accept Card Name\` or \`!deny\`.`);
+}
+
+
+case "accept": {
+  const opponentId = userId;
+  const challengerEntry = Object.entries(pendingBattles).find(([key, b]) => b.opponent === opponentId);
+  if (!challengerEntry) return message.channel.send("You have no pending battle requests.");
+
+  const [battleKey, battle] = challengerEntry;
+  const challengerId = battle.challenger;
+  const challengerCardName = battle.challengerCard;
+
+  const opponentCardName = args.join(" ");
+  const opponentInv = userInventory[opponentId] || [];
+  const opponentCardObj = opponentInv.find(c => c.name.toLowerCase() === opponentCardName.toLowerCase());
+
+  if (!opponentCardObj) return message.channel.send("You don't have that card.");
+
+  const challengerCardObj = Object.values(CHARACTERS).flat().find(c => c.name.toLowerCase() === challengerCardName.toLowerCase());
+  const opponentCardFullObj = Object.values(CHARACTERS).flat().find(c => c.name.toLowerCase() === opponentCardName.toLowerCase());
+
+  if (!challengerCardObj || !opponentCardFullObj) return message.channel.send("One of the cards could not be found in the card database.");
+
+  const winnerId = Math.random() < 0.5 ? challengerId : opponentId;
+  const loserId = winnerId === challengerId ? opponentId : challengerId;
+  const winnerCard = winnerId === challengerId ? challengerCardName : opponentCardName;
+  const loserCard = winnerId === challengerId ? opponentCardName : challengerCardName;
+
+  const removed = removeCardsFromInventory(loserId, loserCard, 1);
+  if (removed) {
+    const cardObj = Object.values(CHARACTERS).flat().find(c => c.name === loserCard);
+    addCardToInventory(winnerId, cardObj);
+  }
+
+  battleStats[winnerId] = battleStats[winnerId] || { wins: 0, losses: 0 };
+  battleStats[loserId] = battleStats[loserId] || { wins: 0, losses: 0 };
+  battleStats[winnerId].wins++;
+  battleStats[loserId].losses++;
+
+  delete pendingBattles[battleKey];
+  await saveAllData();
+  await saveBattleStats();
+
+  const embed = new EmbedBuilder()
+    .setTitle("⚔️ Battle Result")
+    .setColor("#ff9900")
+    .setDescription(`**${challengerCardObj.name}** (by <@${challengerId}>)\n🆚\n**${opponentCardFullObj.name}** (by <@${opponentId}>)`)
+    .addFields({ name: "🏆 Winner", value: `<@${winnerId}> wins and takes **${loserCard}**!` })
+    .setThumbnail(challengerCardObj.image)
+    .setImage(opponentCardFullObj.image)
+    .setFooter({ text: "Battle complete!" });
+
+  return message.channel.send({ embeds: [embed] });
+}
+
+
+case "deny": {
+  const opponentId = userId;
+  const battleKey = Object.keys(pendingBattles).find(key => key.endsWith(`_${opponentId}`));
+  if (!battleKey) return message.channel.send("You have no pending battle requests.");
+
+  delete pendingBattles[battleKey];
+  return message.channel.send("You denied the battle request.");
+}
+
+case "battlestats": {
+  const target = message.mentions.users.first() || message.author;
+  const stats = battleStats[target.id] || { wins: 0, losses: 0 };
+
+  const embed = new EmbedBuilder()
+    .setTitle(` Battle Stats for ${target.username}`)
+    .setColor("#9b59b6")
+    .addFields(
+      { name: "🏆 Wins", value: `${stats.wins}`, inline: true },
+      { name: "💀 Losses", value: `${stats.losses}`, inline: true }
+    )
+    .setFooter({ text: "Battle records are updated after each completed match." });
+
+  return message.channel.send({ embeds: [embed] });
+}
+
+
 
 case "chances": {
   const embed = new EmbedBuilder()
@@ -327,6 +479,10 @@ case "chances": {
           { name: "!leaderboard", value: "See the top 10 richest users." },
           { name: "!chances", value: "See the chances of each rarity." },
           { name: "!credits", value: "See who made the bot." },
+          { name: "!battle @user", value: "Challenge another user to a card battle." },
+          { name: "!accept Card Name", value: "Accept a battle challenge." },
+          { name: "!deny", value: "Decline a battle challenge." },
+          { name: "!battlestats [@user]", value: "View your or someone else's win/loss record." },
           { name: "!secret", value: "Display secret cards." },
           { name: "!listcard <cardName> <price>", value: "List a card on the marketplace." },
           { name: "!marketplace [rarity] [page]", value: "Browse the marketplace with optional filters." },
@@ -340,10 +496,20 @@ case "chances": {
       return message.channel.send({ embeds: [embed] });
     }
 
-    case "balance": {
-      const bal = userCurrency[userId] || 0;
-      return message.channel.send(`${message.author}, you have **${bal}** coins.`);
-    }
+case "balance": {
+  const userId = message.author.id;
+  const coins = userCurrency[userId] || 0;
+
+  const balanceEmbed = new EmbedBuilder()
+    .setTitle(`${message.author.username}'s Balance`)
+    .setDescription(`💰 You have **${coins}** coins.`)
+    .setColor("#FFD700") 
+    .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
+    .setTimestamp();
+
+  return message.channel.send({ embeds: [balanceEmbed] });
+}
+
 
     case "daily": {
       if (!canClaimDaily(userId)) {
@@ -436,7 +602,7 @@ case "trade": {
     return message.channel.send("Usage: `!trade @user <Card Name> <amount>`");
   }
 
-  const cardName = args.slice(1, -1).join(" "); // Exclude mention and amount
+  const cardName = args.slice(1, -1).join(" ");
   const senderInv = userInventory[userId] || [];
   const senderCardCount = senderInv.filter(c => c.name.toLowerCase() === cardName.toLowerCase()).length;
 
@@ -480,10 +646,6 @@ case "trade": {
         .setColor("#FFD700");
 
       return message.channel.send({ embeds: [embed] });
-    }
-
-    case "credits": {
-      return message.channel.send("This bot was Designed and Coded Entirely By ParkerXD24, Credits: Donutello, itzjustjenn, and lechonk for the Pictures");
     }
 
     case "secret": {
@@ -777,4 +939,3 @@ ${result}`,
   }
 });
 
-});
