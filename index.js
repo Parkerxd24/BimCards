@@ -16,22 +16,22 @@ const REGULAR_PACK_COST = 70;
 const LEGEND_PACK_COST = 400;
 const DAILY_COOLDOWN = 4 * 60 * 60 * 1000;
 
-const DATA_DIR = path.join(__dirname, "data");
-const currencyPath = path.join(DATA_DIR, "currency.json");
-const inventoryPath = path.join(DATA_DIR, "inventory.json");
-const dailyPath = path.join(DATA_DIR, "daily.json");
-const marketplacePath = path.join(DATA_DIR, "marketplace.json");
-const battleStatsPath = path.join(DATA_DIR, "battlestats.json");
+const currencyPath = path.join(__dirname, "currency.json");
+const inventoryPath = path.join(__dirname, "inventory.json");
+const winsPath = path.join(__dirname, "wins.json");
+const battlesPath = path.join(__dirname, "battles.json");
+const battleStatsPath = path.join(__dirname, "battlestats.json");
+const dailyPath = path.join(__dirname, "daily.json");
+const marketplacePath = path.join(__dirname, "marketplace.json");
 
 
-async function loadJSON(filePath) {
-  try {
-    return await fs.readJson(filePath);
-  } catch {
-    await fs.outputJson(filePath, []);
-    return [];
-  }
-}
+let userCurrency = {};
+let userInventory = {};
+let userDailyCooldown = {};
+let userWins = {};
+let battleStats = {};
+let pendingBattles = {};
+let marketplaceListings = [];
 
 async function loadJSONobj(filePath) {
   try {
@@ -42,22 +42,88 @@ async function loadJSONobj(filePath) {
   }
 }
 
-let userCurrency = {};
-let userInventory = {};
-let userDailyCooldown = {};
-let marketplaceListings = [];
-const pendingBattles = {};
-let battleStats = {};
+async function loadJSON(filePath, fallback = {}) {
+  try {
+    return await fs.readJson(filePath);
+  } catch (err) {
+    console.error(`Failed to read ${filePath}:`, err.message);
+    console.warn("File was NOT reset to avoid data loss. Please check the file manually.");
+    throw err;
+  }
+}
 
+async function loadMarketplace() {
+  const data = await loadJSON("marketplace.json", []);
+  if (!Array.isArray(data)) {
+    console.warn("Marketplace Resetting.");
+    marketplaceListings = [];
+    await saveMarketplace();
+  } else {
+    marketplaceListings = data;
+  }
+}
+
+async function saveMarketplace() {
+  await fs.writeJson("marketplace.json", marketplaceListings, { spaces: 2 });
+}
+
+function paginate(input, page = 1, pageSize = 5) {
+  const array = Array.isArray(input) ? input : [];
+  const start = (page - 1) * pageSize;
+  return array.slice(start, start + pageSize);
+}
+
+async function loadAllData() {
+  userCurrency = await loadJSON(currencyPath);
+  userInventory = await loadJSON(inventoryPath);
+  userDailyCooldown = await loadJSON(dailyPath);
+  userWins = await loadJSON(winsPath);
+  battleStats = await loadJSON(battleStatsPath);
+  pendingBattles = await loadJSON(battlesPath);
+  marketplaceListings = await loadJSON(marketplacePath, []);
+}
 
 async function saveAllData() {
   await Promise.all([
     fs.writeJson(currencyPath, userCurrency, { spaces: 2 }),
     fs.writeJson(inventoryPath, userInventory, { spaces: 2 }),
     fs.writeJson(dailyPath, userDailyCooldown, { spaces: 2 }),
+    fs.writeJson(winsPath, userWins, { spaces: 2 }),
+    fs.writeJson(battlesPath, pendingBattles, { spaces: 2 }),
+    fs.writeJson(battleStatsPath, battleStats, { spaces: 2 }),
     fs.writeJson(marketplacePath, marketplaceListings, { spaces: 2 }),
   ]);
 }
+
+process.on("SIGINT", async () => {
+  console.log(" Saving all data before shutdown...");
+  await saveAllData();
+  process.exit(0);
+});
+
+process.on("SIGTERM", async () => {
+  console.log(" SIGTERM received. Saving data...");
+  await saveAllData();
+  process.exit(0);
+});
+
+process.on("uncaughtException", async (err) => {
+  console.error(" Uncaught Exception:", err);
+  await saveAllData();
+  process.exit(1);
+});
+
+process.on("unhandledRejection", async (reason) => {
+  console.error(" Unhandled Rejection:", reason);
+  await saveAllData();
+  process.exit(1);
+});
+
+client.once("ready", async () => {
+  console.log(`✅ Bot is online as ${client.user.tag}`);
+  await loadAllData();
+});
+
 async function saveBattleStats() {
   await fs.writeJson(battleStatsPath, battleStats, { spaces: 2 });
 }
@@ -264,10 +330,53 @@ client.on("ready", () => {
 client.on("messageCreate", async (message) => {
   if (message.author.bot || !message.content.startsWith(PREFIX)) return;
 
+  const ALLOWED_CHANNEL_ID = "1383123492177707038";
+  if (message.channel.id !== ALLOWED_CHANNEL_ID) {
+    return message.channel.send("❌ Commands can only be used in the designated bot channel.");
+  }
+
   const [command, ...args] = message.content.trim().substring(PREFIX.length).split(/\s+/);
   const userId = message.author.id;
 
   switch (command.toLowerCase()) {
+
+case 'removecoins': {
+  const ownerId = '1283897212069347489';
+
+  if (message.author.id !== ownerId) {
+    return message.reply("You don't have permission to use this command.");
+  }
+
+  const user = message.mentions.users.first();
+  const amount = parseInt(args[1], 10);
+
+  if (!user) {
+    return message.reply("Please mention a user to remove coins from.");
+  }
+
+  if (isNaN(amount) || amount <= 0) {
+    return message.reply("Please specify a valid amount of coins to remove.");
+  }
+
+  const userId = user.id;
+
+  if (!userCurrency[userId]) {
+    userCurrency[userId] = 0;
+  }
+
+  userCurrency[userId] = Math.max(userCurrency[userId] - amount, 0);
+
+  fs.writeJson(currencyPath, userCurrency, { spaces: 2 })
+    .then(() => {
+      message.channel.send(`${amount} coins have been removed from ${user.username}. They now have ${userCurrency[userId]} coins.`);
+    })
+    .catch(err => {
+      console.error(err);
+      message.channel.send("Failed to save data.");
+    });
+
+  break;
+}
 
 case "credits": {
   const creditsEmbed = new EmbedBuilder()
@@ -278,7 +387,7 @@ case "credits": {
       { name: "*** Bot Designer ***", value: "ParkerXD24", inline: true },
       { name: "*** Bot Programmer ***", value: "ParkerXD24", inline: true },
       { name: "Extra Credit", value: "Donutello, itzjustjenn, and lechonk", inline: false },
-      { name: "Special Thanks", value: "All the users who tested commands & provided card images", inline: false }
+      { name: "Special Thanks", value: "To, the1coolgamer For Hosting the Bot!", inline: false }
     )
     .setFooter({ text: ":)" })
     .setTimestamp();
@@ -479,8 +588,8 @@ case "chances": {
           { name: "!leaderboard", value: "See the top 10 richest users." },
           { name: "!chances", value: "See the chances of each rarity." },
           { name: "!credits", value: "See who made the bot." },
-          { name: "!battle @user Cardname", value: "Challenge another user to a card battle." },
-          { name: "!accept Cardname", value: "Accept a battle challenge." },
+          { name: "!battle @user", value: "Challenge another user to a card battle." },
+          { name: "!accept Card Name", value: "Accept a battle challenge." },
           { name: "!deny", value: "Decline a battle challenge." },
           { name: "!battlestats [@user]", value: "View your or someone else's win/loss record." },
           { name: "!secret", value: "Display secret cards." },
@@ -704,47 +813,59 @@ case "trade": {
   return message.channel.send(`Your **${card.name}** card has been listed for **${price}** coins on the marketplace. Listing ID: **${newListing.id}**`);
 }
 
-    case "marketplace": {
-      let filterRarity = null;
-      let page = 1;
-      if (args.length >= 1 && validateRarity(args[0])) {
-        filterRarity = args[0];
-        if (args.length >= 2) {
-          const p = parseInt(args[1]);
-          if (!isNaN(p) && p > 0) page = p;
-        }
-      } else if (args.length >= 1) {
-        const p = parseInt(args[0]);
-        if (!isNaN(p) && p > 0) page = p;
-      }
+case "marketplace": {
+  let filterRarity = null;
+  let page = 1;
 
-      let listings = marketplaceListings;
-      if (filterRarity) listings = listings.filter(l => l.rarity === filterRarity);
-
-      if (listings.length === 0) {
-        return message.channel.send("No marketplace listings found for the given filters.");
-      }
-
-      const PAGE_SIZE = 5;
-      const totalPages = Math.ceil(listings.length / PAGE_SIZE);
-      if (page > totalPages) page = totalPages;
-
-      const pageListings = paginate(listings, page, PAGE_SIZE);
-
-      const embed = new EmbedBuilder()
-        .setTitle(`Marketplace Listings${filterRarity ? ` - ${filterRarity}` : ""} (Page ${page}/${totalPages})`)
-        .setColor("#00FFFF")
-        .setFooter({ text: "Use !buycard <listingId> to buy a card." });
-
-      for (const listing of pageListings) {
-        embed.addFields({
-          name: `ID: ${listing.id} — ${listing.card.name} (${listing.rarity})`,
-          value: `Price: **${listing.price}** coins\nSeller: <@${listing.sellerId}>`,
-        });
-      }
-
-      return message.channel.send({ embeds: [embed] });
+  if (args.length >= 1 && validateRarity(args[0])) {
+    filterRarity = args[0];
+    if (args.length >= 2) {
+      const p = parseInt(args[1]);
+      if (!isNaN(p) && p > 0) page = p;
     }
+  } else if (args.length >= 1) {
+    const p = parseInt(args[0]);
+    if (!isNaN(p) && p > 0) page = p;
+  }
+
+  let listings = Array.isArray(marketplaceListings) ? marketplaceListings : [];
+
+ 
+  if (filterRarity) {
+    listings = listings.filter(l => l.rarity === filterRarity);
+  }
+
+  if (listings.length === 0) {
+    return message.channel.send({
+      embeds: [
+        new EmbedBuilder()
+          .setDescription(" No marketplace listings found for the given filters.")
+          .setColor("#FFAA00")
+      ]
+    });
+  }
+
+  const PAGE_SIZE = 5;
+  const totalPages = Math.max(1, Math.ceil(listings.length / PAGE_SIZE));
+  if (page > totalPages) page = totalPages;
+
+  const pageListings = paginate(listings, page, PAGE_SIZE);
+
+  const embed = new EmbedBuilder()
+    .setTitle("🛒 Marketplace Listings")
+    .setColor("#00BFFF")
+    .setFooter({ text: `Page ${page} of ${totalPages}` });
+
+  for (const listing of pageListings) {
+    embed.addFields({
+      name: `${listing.name} (${listing.rarity})`,
+      value: `Seller: <@${listing.seller}>\nPrice: 💰 ${listing.price}`,
+      inline: false
+    });
+  }
+
+  return message.channel.send({ embeds: [embed] });
+}
 
     case "buycard": {
       
@@ -938,4 +1059,3 @@ ${result}`,
     });
   }
 });
-
